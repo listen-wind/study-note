@@ -1,0 +1,10 @@
+[credential]
+    helper = store --file /mnt/thumbdrive/.git-credentials
+    helper = cache --timeout 30000
+
+[user]
+    name = listen-wind
+    email = wangjx502@163.com
+
+[credential]
+     helper=store

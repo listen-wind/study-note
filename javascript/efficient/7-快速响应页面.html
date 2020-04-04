@@ -1,0 +1,65 @@
+<!--
+    理解一个原理：
+        浏览器UI线程：执行js和UI添加，更新，这些操作都会按照顺序添加到UI线程中，按线程顺序执行，当js执行的时候UI操作是不能添加到线程中去的，
+        所以如果一段js执行时间太长的话，会影响页面的响应速度，降低用户体验度。
+        一段js执行时间一般应该控制在100ms以内，如果对于大于100ms的，可以使用定时器分段执行。
+        定时器的执行会将打断js的运行，此时UI操作就可以添加到UI线程中，从而执行UI操作，提升用户体验。
+        由于window的定时器分辨率为15ms，所以如果定时器时间太小，会出现一些问题，
+        所以建议定时器时间为 25ms
+        见例一，例二
+
+        定时器可以很大的提升页面的性能，如果同一时间只存在一个定时器，不会造成性能问题。
+        如果同一时间存在多个定时器，那么就会产生性能问题
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+<script>
+    // 例一
+    function processArray(items, process, callback) {
+        // 克隆操作数组
+        var todo = items.concat();
+
+        setTimeout(function () {
+            process(todo.shift());
+
+            if (todo.length > 0) {
+                setTimeout(arguments.callee, 25);
+            } else {
+                callback(items);
+            }
+        }, 25)
+    }
+
+    // 例二
+    // 如果没25ms执行一次任务，效率不高，所以在例一的基础上做了修改
+    function processArrayChanged(items, process, callback) {
+        // 克隆操作数组
+        var todo = items.concat();
+
+        setTimeout(function () {
+            // 前面的加号可以将时间转化为数字
+            var start = +new Date();
+
+            do {
+                process(todo.shift());
+                // 设定50ms之内循环执行任务，提升效率
+            } while (todo.length > 0 && +new Date() - start < 50);
+
+
+            if (todo.length > 0) {
+                setTimeout(arguments.callee, 25);
+            } else {
+                callback(items);
+            }
+        }, 25)
+    }
+</script>
+</body>
+</html>

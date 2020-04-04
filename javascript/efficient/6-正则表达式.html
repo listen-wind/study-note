@@ -1,0 +1,127 @@
+<!--
+    正则表达式工作原理
+        -- 编译正则表达式，转化为一个原生代码程序，用于执行匹配工作。此时建议将正则表达式赋值给一个变量，可以避免重复编译
+        -- 确定目标字符串的起始搜索位置，比如："atedct".search(/ed/);它的开始位置就是字符e位置
+            -- 优化正则表达式引擎的方法：提前决定跳过一些不必要的步骤，避免大量无意义的工作。比如：第三个字符匹配x，浏览器会先尝试匹配x，在回退两步，设置开始位置。
+        -- 开始位置确定，逐个检查文本和正则表达式模式，当一个特定的字元匹配失败时，正则表达式会回溯到尝试匹配的位置上，然后尝试其他可能的路径
+        -- 在尝试了其他可能路径都没有匹配到，正则表达式引擎会回退到第二步，然后从下个字符开始，重新查找开始位置。
+
+    提高正则表达式效率的方法
+        -- 关注如何让匹配更快失败：正则表达式慢的原因通常是匹配失败的过程慢，而不是匹配成功的过程慢（如：通过增加回溯的次数去尝试所有的排列组合，这是一个失败的尝试）
+        -- 正则表达式以简单、必需的字元开始：以一个简单，明确的字元开始，可以尽快测试并排除明显不匹配的位置。通常可以是锚（^或$）,特定字符（x或\u263A）,避免使用分支结构（one|two）
+        -- 使用量词模式，使它们后面的字元互斥：尽量使用具体的匹配模式，如：可以使用这样的模式"[^"\s\n]"避免使用".*?"
+        -- 减少分支数量，缩小分支范围：通过使用字符集和选项组减少对分支的需求。如：
+            -- cat|bat    可以写成    [bc]at
+            -- red|read   可以写成    rea?d
+            -- red|raw    可以写成    r(?:ed|aw)
+            -- (.|\r|\n)  可以写成    [\s\S]
+            字符集比分支更快，如果分支不可避免，将常用的分支放到最前面
+        -- 使用非捕获组：捕获组消耗时间和内存来记录方向引用，并使它保持最新，所以建议使用非捕获组。如：用(?:....)替代(.....)
+        -- 只捕获感兴趣的文本以减少后处理：如果你需要匹配中的一部分，应该想办法获取需要的那部分，在使用反向引用处理。如：需要匹配引号里的内容：/"([^"']*)"/代替/"[^"']*"/和后处理
+        -- 暴露必须的字元：如：正则表达式/^(ab|cd)/暴露了锚“^”,浏览器就会根据锚，定位首位字符。这种方式比起/(^ab)|(^cd)/没有暴露锚的方式性能好很多
+        -- 使用合适的量词：如：贪婪量词和懒惰量词（在Opera 9.x及更早版本中非常慢）
+        -- 把正则表达式赋值给变量并重用：这样可以避免多次编译
+        -- 将复杂的正则表达式拆分为简单的片段：这样可以避免引起回溯问题
+
+    去除字符串首尾空白方式见下例：
+-->
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+<script>
+    // 贪婪模式匹配 平均15ms
+    //var reg = /^<html>[\s\S]*<head>[\s\S]*<\/head>[\s\S]*<body>[\s\S]*<\/body>[\s\S]*<\/html>/;
+
+    // 非贪婪模式匹配 平均10ms  如果匹配字符串去掉</html>那么消耗时间平均在15ms 因为会回溯失控，有一定的风险
+    // var reg=/^<html>[\s\S]*?<head>[\s\S]*?<\/head>[\s\S]*?<body>[\s\S]*?<\/body>[\s\S]*?<\/html>/;
+
+    // 预查 平均15ms 可以防止回溯失控（可以防止向后扩展，还有其他几种可能，但是不能防止回溯）但是性能不会提升，因为每次匹配一个字符就会预查一次
+    // var reg=/^<html>(?:(?!<head>)[\s\S])*<head>(?:(?!<\/head>)[\s\S])*<\/head>(?:(?!<body>)[\s\S])*<body>(?:(?!<\/body>)[\s\S])*<\/body>(?:(?!<\/htmls>)[\s\S])*<\/html>/;
+
+    // 预查和反向引用 模拟原子组 平均13ms 可以防止回溯失控（在预查过程中，丢弃所有回溯位置，所以如果后面匹配失败，由于没有回溯位置，所以会退出匹配），性能有所提升
+    var reg = /^<html>(?=([\s\S]*?<head>))\1(?=([\s\S]*?<\/head>))\2(?=([\s\S]*?<body>))\3(?=([\s\S]*?<\/body>))\4[\s\S]*?<\/html>/;
+    var html = '<html><head><title>企业用户</title><meta charset="UTF-8"/><link href="lib/font-awesome/css/font-awesome.min.css" rel="stylesheet" type="text/css" /><link href="lib/bootstrap/css/bootstrap.min.css" rel="stylesheet" type="text/css" /><link href="lib/bootstrap-modal/css/bootstrap-modal-bs3patch.css" rel="stylesheet" type="text/css" /><link href="lib/bootstrap-modal/css/bootstrap-modal.css" rel="stylesheet" type="text/css" /><link href="lib/uniform/css/uniform.default.css" rel="stylesheet" type="text/css" /><link href="css/base.css" rel="stylesheet" type="text/css" /><link href="css/custom.min.css" rel="stylesheet" type="text/css" /><link rel="shortcut icon" href="favicon.ico" /></head><body><div class="page-header navbar navbar-fixed-top"><div class="page-header-inner container"><div class="page-logo"><a href="index.html"><img src="img/logo.png" alt="logo" class="logo-default" /></a></div><div class="page-top"><form class="search-form open" action="#" method="GET"><div class="input-group"><input type="text" class="form-control input-sm" placeholder="输入你想了解的课程" name="query"><span class="input-group-btn"><a href="javascript:;" class="btn submit"><i class="icon-magnifier"></i></a></span></div></form><div class="top-menu invisible"><ul class="nav navbar-nav no-margin"><li class="dropdown p-t-m m-r-sm"><button type="button" class="btn btn-sm yellow-gold btn-round-corner">登录</button></li><li class="dropdown p-t-m"><button type="button" class="btn btn-sm yellow-gold btn-round-corner">注册</button></li></ul></div><div class="top-menu"><ul class="nav navbar-nav  "><li class="dropdown dropdown-user dropdown-dark"><a href="javascript:;" class="dropdown-toggle" data-toggle="dropdown" data-hover="dropdown" data-close-others="true"><img alt="" class="img-circle" src="img/head.png" /></a></li><li class="dropdown  "><a href="javascript:;" class="p-t-md p-l-0 dropdown-toggle"  >三星中国区总公司</a></li><li class="dropdown  "><a href="javascript:;" class="p-t-md text-muted dropdown-toggle"  >退出</a></li></ul></div></div><div class="page-top"><div class="top-menu"><ul class="nav navbar-nav "><li class="dropdown"><a href="javascript:;" class="dropdown-toggle" > 首页</a></li><li class="dropdown"><a href="javascript:;" class="dropdown-toggle" >分类</a></li></ul></div></div></div></div><div class="page-header navbar page-header-2th"><div class="page-header-inner container"><div class="page-logo user-head"><div class="profile-userpic text-center"><img src="img/head.png" class="img-responsive" alt=""><a href="#" style="text-decoration: none;"><div class="  font-xs font-white m-t-n-lg">编辑头像</div></a></div></div><div class="page-logo user-info" ><h5><small  class="white"><span class="font-dark-grey">ID</span>   1515464564</small></h5><h5><small class="white"><span class="font-dark-grey">姓名</span>   三星中国区总公司</small></h5><h5><small class="white"><a href="7.html" class="font-yellow-gold">积分 2250</a>   ( 积分积分可以兑换课程哦 )</small><button type="button" class="btn default white btn-outline btn-xs btn-rounded">如何获得积分</button></h5></div><div class="page-logo ad pull-right" ><h5 class="text-right" style="margin-top: 50px;"><small class="white">邀请更多学员、老师、机构注册优堂，优堂将为你返利</small><button type="button" class="btn blue btn-round-corner btn-sm width80">邀请注册</button></h5></div></div></div><div class="clearfix"></div><div class="container"><div class="page-container"><div class="page-sidebar-wrapper"><div class="page-sidebar navbar-collapse collapse"><ul class="page-sidebar-menu"><li class="nav-item start"><a href="index-qiye.html" class="nav-link nav-toggle"><h4  class=" text-center"><i class="glyphicon glyphicon-play-circle"></i>                首页</h4></a></li><li class="nav-item text-center"><a href="" class="nav-link nav-toggle"><i class="glyphicon glyphicon-play-circle"></i><span class="font-sm">我的信息</span></a></li><li class="nav-item text-center active"><a href="41.html" class="nav-link nav-toggle"><i class="glyphicon glyphicon-play-circle"></i><span class="font-sm">我的订单</span></a></li><li class="nav-item text-center"><a href="27.html" class="nav-link nav-toggle"><i class="glyphicon glyphicon-play-circle"></i><span class="font-sm">我的评价</span></a></li><li class="nav-item text-center"><a href="37.html" class="nav-link nav-toggle"><i class="glyphicon glyphicon-play-circle"></i><span class="font-sm">邀请注册</span></a></li><li class="nav-item text-center"><a href="34.html" class="nav-link nav-toggle"><i class="glyphicon glyphicon-play-circle"></i><span class="font-sm">我的消息</span></a></li><li class="nav-item text-center"><a href="33.html" class="nav-link nav-toggle"><i class="glyphicon glyphicon-play-circle"></i><span class="font-sm">我的钱包</span></a></li><li class="nav-item text-center"><a href="39.html" class="nav-link nav-toggle"  ><i class="glyphicon glyphicon-play-circle"></i><span class="font-sm">账户设置</span></a></li></ul></div></div><div class="page-content-wrapper"><div class="page-content "><ul class="page-breadcrumb breadcrumb"><li><a href="44.html">我的订单</a><i class="glyphicon glyphicon-chevron-right"></i></li><li><span class="font-dark-grey">内训课</span><i class="glyphicon glyphicon-chevron-right"></i></li><li><span class="active">订单详情</span></li></ul><div class="row"><div class="portlet light  "><div class="portlet-body form"><h5 class="block">订单详情</h5><div class="alert border-light-gold bg-light-yellow p-sm font-xs"><span class="text-muted">当前订单状态：</span><span>待评价  待支付</span>&#12288<a href="javascript:;" class="btn yellow-gold btn-xs">去支付</a>&#12288<a href="javascript:;" class="btn yellow-gold btn-xs">已完成支付</a><hr class="border-light-gold m-t-sm m-b-sm" style="border-style: dotted"/><h6>已经上完课了，去谈谈你对老师的感觉吧，评价可以获得积分哦</h6><button type="button" href="javascript:;" class="btn yellow-gold btn-xs">评价</button></div><div class="alert border-light-gold bg-light-yellow p-sm font-xs"><span class="text-muted">当前订单状态：</span><span>待评价  已支付</span>&#12288<hr class="border-light-gold m-t-sm m-b-sm" style="border-style: dotted"/><h6>已经上完课了，去谈谈你对老师的感觉吧，评价可以获得积分哦</h6><button type="button" href="javascript:;" class="btn yellow-gold btn-xs">评价</button></div><div class="alert border-light-gold bg-light-yellow p-sm font-xs"><span class="text-muted">当前订单状态：</span> 待确定 &#12288</div><div class="alert border-light-gold bg-light-yellow p-sm font-xs"><span class="text-muted">当前订单状态：</span> 待支付&#12288<a href="javascript:;" class="btn blue btn-xs" onclick="changeTime()">修改时间</a>&#12288<a href="javascript:;" class="btn btn-danger btn-xs" onclick="cancelLesson()">取消上课</a>&#12288<a href="javascript:;" class="btn yellow-gold btn-xs" onclick="cancelLesson()">确认已上课</a>&#12288<a href="javascript:;" class="btn yellow-gold btn-xs">去支付</a>&#12288<a href="javascript:;" class="btn yellow-gold btn-xs">已完成支付</a></div></body></html>';
+    console.log(reg.test(html));
+
+    // 避免使用嵌套量词，使用嵌套量词如果回溯，可能回造成回溯成倍增加
+    /(A*A*)*B/.test("AAAAAAAAAA"); // 首先会考虑括号内，不同种情况，(10,0),(8,2),之后在考虑括号外的*种种可能，回溯次数会成倍的增加
+
+
+    // 在EM5中添加了原生的trim方式
+    // 法一：
+    function trim_1() {
+        // if (!String.prototype.trim) {
+        String.prototype.trim = function () {
+            return this.replace(/^\s*/, "").replace(/\s\s+$/, "");
+        }
+        // }
+    }
+
+    // 法二：非正则表达式
+    function trim_2() {
+        String.prototype.trim = function () {
+            var start = 0, end = this.length - 1;
+            // ECMAScript5中所有的空白字符如下：
+            var ws = " \n\r\t\f\x0b\xa0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u2028\u2029\u202f\u205f\u3000\ufeff";
+            while (ws.indexOf(this.charAt(start)) > -1) {
+                start++;
+            }
+            while (ws.indexOf(this.charAt(end)) > -1) {
+                end--;
+            }
+            return this.slice(start, end + 1);
+        }
+    }
+
+    // 法三：混合模式
+    function trim_3() {
+        String.prototype.trim = function () {
+            var str = this.replace(/^\s*/, ""),
+                    end = str.length - 1,
+                    ws = " \n\r\t\f\x0b\xa0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u2028\u2029\u202f\u205f\u3000\ufeff";
+            while (ws.indexOf(str.charAt(end)) > -1) {
+                end--;
+            }
+            return str.slice(0, end + 1);
+        }
+    }
+
+
+    function createStr(s, e, t) {
+        var startEmpty = s || 1000,
+                endEmpty = e || 2000,
+                totalNum = t || 100000000,
+                str = "",
+                strArr = "abcdefghijklmnopqrstuvwxyz ";
+
+        while (startEmpty--) {
+            str += " ";
+        }
+
+        while (totalNum--) {
+            str += strArr.charAt(Math.floor(Math.random() * 27));
+        }
+
+        while (endEmpty--) {
+            str += " ";
+        }
+
+        return str;
+    }
+
+
+    var str = createStr(500, 1000, 10000000);
+    // trim_1(); //86.2  87.7
+    // trim_2();  // 78.7 75.5
+    trim_3();  // 77.6  76.8 79.3
+    str.trim();
+</script>
+</body>
+</html>

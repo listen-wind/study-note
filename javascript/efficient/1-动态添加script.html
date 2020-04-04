@@ -1,0 +1,50 @@
+<!--
+    通过js动态添加 script 标签
+    在chrome、Firefox、Opera等当加载完成时触发一个load事件，
+    而在IE浏览器中下载文件会触发readystatechange事件，在下载过程中，script元素有五种状态，其中两种比较常用
+    - loaded  下载完成
+    - complete  所有数据已准备就绪
+
+    这两种状态，有时不一致，有时到达了loaded，从不到达complete，有时不经过loaded就到达了complete，所以最好的做法是同时判断两种状态
+    if(script.readystate=="loaded"||script.readystate=="complete")
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>动态脚本元素</title>
+    <script>
+        var script = document.createElement("script");
+        if (script.load) {
+            console.log("load is exist");
+        }
+        if (script.readyState) {
+            console.log("readyState is exist");
+        }
+
+        // 封装同时兼容各大浏览器的script加载完成方法
+        function loadScript(url, callback) {
+            var script = document.createElement("script");
+            script.type = "text/javascript";
+            if (script.readyState) {
+                // 兼容IE
+                script.readystatechange = function (callback) {
+                    if (script.readyState == "loaded" || script.readyState == "complete") {
+                        script.readystatechange = null;  // 防止二次触发
+                        callback();
+                    }
+                }
+            } else {
+                // 兼容除IE各大浏览器
+                script.load = function (callback) {
+                    callback();
+                }
+            }
+            script.src = url;
+        }
+    </script>
+</head>
+<body>
+
+</body>
+</html>

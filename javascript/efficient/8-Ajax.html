@@ -1,0 +1,168 @@
+<!--
+    数据方式：
+        GET  请求速度快（只发送一个数据包，不发送请求头），但是传输数据长度有限制（对于IE），请求的数据可以被缓存
+        POST  用来发送大量数据到服务器，但是速度慢（请求数据包含一个数据包和请求头包）
+
+    请求数据方式：
+        XHR  可以实现异步请求数据，但是不能跨域
+        动态脚本注入  可以跨域请求数据，不能设置请求头信息，只能以get方式请求，传送数据必须是可执行的js代码（不能是xml，json....）
+            动态脚本注入，处理速度非常快，由于传送的数据就是js代码，几乎不需要解析。但是安全性不高
+        MXhr  可以只用一个http请求从服务器中请求到多个资源，
+            它通过服务器将多个资源打包成一个由双发约定的字符串分割的长字符串并发送到客户端，客户端就可以根据分隔符将字符串解析成几个资源，这样就实现了一个http请求传送多个资源
+            由于使用MXHR方式传送数据过大，所以在接受数据时需要注意方式，应该在传送数据过程中就开始接收（当readyState==3时表示数据正在传输），实时监控数据，当发现有分隔符时，将数据分离，并且处理。
+
+    发送数据方式：
+        Xhr  异步发送数据，
+        Beacons  类似动态脚本注入，只能简单传送数据，可以通过load或error事件判断是否成功发送数据，传输速度快
+            创建一个新的Image对象，并把src属性设置为服务器上脚本的URL，通过GET方式传送数据
+
+    数据格式：
+        xml  通用性很强，可以在客户端和服务器端使用，数据格式冗长，解析麻烦，文件很大
+            标准xml <user><id>12</id><name>Mary</name></user>
+            简化xml <user id="12" name="Mary"></user>
+
+        json  轻量级便于解析的数据格式
+            标准json
+            简化json
+            数组json
+
+        json-p  以js代码格式传入数据，几乎不需要解析，安全性不高
+
+        HTML  数据繁杂，可以减少客户端CPU消耗，只需innerHTML方式添加到页面中即可，解析时间长（指的是将HTML字符串解析到页面）
+
+        自定义格式  极轻量，解析速度快，可以用来处理非常大的数据集，
+            利用分隔符按照某种格式，将数据分割，形成一个字符串，在客户端只需要使用split()方法进行切割即可。
+            比如：'abc;cds@djkl jljk:jkss@iuiou'
+
+        总结：如果传送数据非常大，可以使用两种方式：
+            json-p
+            自定义数据
+
+    Ajax性能：
+        缓存数据：
+            客户端：可以手动将数据存储在本地，以URL为键值作为索引。
+            服务器端：通过设置响应头信息的expire属性
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ajax</title>
+</head>
+<body id="body">
+<div id="div"></div>
+
+<script>
+    // MXHR 案例
+    function splitImages(imageStr) {
+        var images = imageStr.split("\u0001");
+        var imgEle;
+
+        for (var i = 0, len = images.length; i < len; i++) {
+            imgEle = document.createElement("img");
+            // 将从服务器获取到的数据写为data64位，写入img的src属性
+            imgEle.src = "data:image/jpeg;base64," + images[i];
+            document.getElementById("container").appendChild(imgEle);
+        }
+    }
+
+    // MXHR 改进
+    var req = new XMLHttpRequest();
+    var getLatesPacketInterval, lastLength = 0, isRequestSuccess = false;
+
+    req.open("GET", "http://localhost/practice/1.php", true);
+    req.onreadystatechange = readyStateHandler;
+    req.send(null);
+
+    function readyStateHandler() {
+        if (req.readyState === 3 && getLatesPacketInterval !== null) {
+            // 开始轮询
+            getLatesPacketInterval = window.setInterval(function () {
+                getLatestPacket();
+            }, 15);
+        }
+
+        if (req.readyState === 4) {
+            isRequestSuccess = true;
+            // 停止轮询
+            clearInterval(getLatesPacketInterval);
+
+            // 获取最后一个数据包
+            getLatestPacket();
+        }
+    }
+
+    function getLatestPacket() {
+        var data = req.responseText;
+        var length = data.length;
+        var packet = data.substring(lastLength, length);
+
+        processPacket(packet);
+        lastLength = length;
+    }
+
+    function processPacket(data) {
+        var dataGroup, len = data.length, splitTab = "\/";
+        if (data.indexOf(splitTab) > -1) {
+            dataGroup = data.split(splitTab);
+            var groupLen = (data[len] === splitTab || isRequestSuccess) ? dataGroup.length : dataGroup.length - 1;
+            for (var i = 0; i < groupLen; i++) {
+                /* 对一段完整的数据进行操作 */
+                /*  ...... */
+                console.log(dataGroup[i]);
+
+                lastLength = data.indexOf(splitTab, lastLength + 1);
+            }
+        }
+    }
+
+
+    // Beacons 原理
+    function beaCons() {
+        var url = 'http://localhost/practice/2.php';
+        var params = [
+            'step=2',
+            'time=1248023442'
+        ];
+
+        req.open("GET", url + "?" + params.join("&"), true);
+
+        var beacons = new Image();
+        beacons.src = url + "?" + params.join("&");
+        document.getElementById("body").appendChild(beacons);
+
+        // 可以通过load和error时间监听发送成功与否
+        beacons.onload = function () {
+            if (this.width == 1) {
+                // 成功
+                console.log("width_1");
+            } else if (this.width == 2) {
+                // 失败，请重试并创建另一个信标
+                console.log("width_2");
+            }
+        };
+
+        beacons.onerror = function () {
+            // 出错，请重试并创建另一个信标
+            console.log("error");
+        }
+    }
+    beaCons();
+
+
+    // jsonp
+    function json_p(url) {
+        var script = document.createElement("script");
+        script.src = url ;
+        document.getElementById("body").appendChild(script);
+    }
+
+    function callback(data){
+        console.log(data);
+    }
+
+    json_p("http://localhost/practice/3.php?callback=callback");
+</script>
+</body>
+</html>

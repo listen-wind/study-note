@@ -1,0 +1,48 @@
+<!--
+    全局变量与局部变量
+    函数在创建时会隐性的创建一个函数属性scope，它指向所有在全局范围内定义的变量。
+    函数在执行时会创建一个被称为执行环境的内部对象，函数每次执行的执行环境都是独一无二的，所以多次调用函数就会创建多个执行环境，当函数执行完毕，执行环境就被销毁。
+    执行环境有自己的作用域链，在执行环境被创建时，作用域链初始化为函数scope指向的全局对象，随着函数的执行，函数内部的变量被按顺序复制到作用域链，过程一旦完成，就形成了一个活动对象。当函数执行完毕后，活动对象随之销毁。
+    在函数执行的过程中，每遇到一个变量，都会遍历作用域链去查找，当查找到就停止遍历，所以如果一个变量所在位置越深，它的读写速度就越慢。
+    全局变量在作用域最末端，读取速度最慢，所以在函数中有多次访问的全局变量最好缓存到局部变量中，在进行访问。
+
+    with 提供一个共用变量，但是它会改变作用域链，将共用的变量放到第一作用域链，局部变量处于第二作用域链，这样会造成局部变量调用性能问题。所以不建议使用
+    try-catch 和with相似，都是会改变作用域链。
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>数据存取</title>
+</head>
+<body>
+
+<script>
+    function init() {
+        var db = document.body,
+                links = document.getElementsByTagName("a");
+
+        document.getElementById("go-btn").onclick = function () {
+            console.log("click");
+        };
+        db.className = "active";
+    }
+    // 在这个函数中一共出现了三次document，处于性能考虑可以这样写
+
+    function init_cl() {
+        // 将全局变量document存储在局部变量doc中，提升性能
+        var doc=document,
+                db = doc.body,
+                links = doc.getElementsByTagName("a");
+
+        doc.getElementById("go-btn").onclick = function () {
+            console.log("click");
+        };
+        db.className = "active";
+    }
+
+
+</script>
+</body>
+</html>

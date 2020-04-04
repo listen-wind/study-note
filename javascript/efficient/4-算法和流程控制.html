@@ -1,0 +1,262 @@
+<!--
+    数组循环性能提升可以从两个方面处理：
+    1、减少每次迭代处理的事务
+        -- 减少每次迭代，查找数组的长度
+        -- 利用倒序遍历，减少迭代数少于总数的判断步骤  见下例
+    2、减少迭代的次数
+        -- 通过广为人知的“达夫设备”，见下例
+
+    在所有情况下，基于循环的迭代，比基于函数迭代快8倍。
+        -- 基于循环迭代 for(var i=0,len=arr.length;i<len;i++){ // 执行代码 }
+        -- 基于函数迭代 arr.forEach(function(index,value,arr){ // 执行代码 })
+    下一方法比上一方法慢，由于下一方法是基于函数迭代，需要消耗时间。
+
+    条件语句
+    if-else和switch，两者之间，如果条件数量很大时，switch比if-else明显快，并且可读性高。
+    通常来说，if-else适用于判断两个离散值或几个不同的值域。switch用来判断多于两个离散值
+    优化if-else
+        -- 条件语句应该按照从最大概率到最小概率的顺序排列，以确保运行速度最快。
+        -- 把if-else组织成一系列嵌套的if-else语句。见下例：
+    相对于if-else和switch来说，查找表比这两种更快，见下例：
+
+    递归
+    使用递归可以使复杂的算法变得简单，但是需要注意的是，如果递归的终止条件不明确或者缺少条件，就会使函数长时间运行。并且递归还会受到调用栈的限制
+    递归模式的两种写法：
+        -- 自调用
+        -- 两个函数互相调用
+
+    for，while，do-while循环新能特性相当
+    for-in 循环可以将对象原型链中的属性遍历出来，不可枚举属性也会被遍历出来
+    for-in 循环运行速度很慢（因为每遍历一次，会同时搜索实例和原型属性），所以在确定属性名个数的情况下可以考虑用其他方式代替for-in
+-->
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+
+<script>
+    var obj = {
+        name: "Mary",
+        age: "12",
+        country: "American"
+    };
+
+    // 在属性名个数确定的情况下，这样会提高代码的运行的速度
+    var objName = ["name", "age", "country"], i = 0;
+    while (i < objName.length) {
+        console.log(obj[objName[i++]]);
+    }
+
+    // 法一：减少每次迭代查询数组长度
+    var arr = [1, 2, 3, 4, 5];
+    for (var a = 0, len_arr = arr.length; a < len_arr; a++) {
+        console.log(arr[a]);
+    }
+
+    // 法二：通过倒序，减少遍历数与总数的比较
+    var len_arr_1 = arr.length;
+    while (len_arr_1--) {  // 与正常情况相比，少了b<arr.length这一步，遵循非零数字隐式转化为true，替代了少的那一步。
+        console.log(arr[len_arr_1]);
+    }
+    // 正常情况
+    var b = 0;
+    while (b < arr.length) {
+        console.log(arr[b++]);
+    }
+
+    var items = [1, 2, 3, 4, 4, 5, 6, 6, 7, 8, 9, 9, 0, 0, 234, 56, 5, 7, 6, 7, 345, 5656, 434, 23, 34, 6];
+    // 达夫设备
+    function daFuOperation(items) {
+        var iterations = Math.floor(items.length / 8);
+        var startAt = items.length % 8;
+        var index = 0;
+        do {
+            switch (startAt) {
+                case 0 :
+                    progress(items[index++]);
+                case 7 :
+                    progress(items[index++]);
+                case 6 :
+                    progress(items[index++]);
+                case 5 :
+                    progress(items[index++]);
+                case 4 :
+                    progress(items[index++]);
+                case 3 :
+                    progress(items[index++]);
+                case 2 :
+                    progress(items[index++]);
+                case 1 :
+                    progress(items[index++]);
+            }
+            startAt = 0;
+        } while (iterations--);
+    }
+    /*daFuOperation(items);*/
+
+    // 改进后的 去掉了switch语句，使得运行速度更快
+    function daFuOperationChanged(items) {
+        var i = items.length % 8, index = 0;
+        while (i--) {
+            progress(items[index++]);
+        }
+
+        i = Math.floor(items.length / 8);
+        while (i--) {
+            progress(items[index++]);
+            progress(items[index++]);
+            progress(items[index++]);
+            progress(items[index++]);
+            progress(items[index++]);
+            progress(items[index++]);
+            progress(items[index++]);
+            progress(items[index++]);
+        }
+    }
+
+    daFuOperationChanged(items);
+
+    function progress(i) {
+        console.log("展示数组项：", i);
+    }
+
+
+    // 优化if-else
+    // 把if-else组成一系列嵌套的if-else语句
+    function commonIteration(value) {
+        if (value = 0) {
+            return "result_0";
+        } else if (value = 1) {
+            return "result_1";
+        } else if (value = 2) {
+            return "result_2";
+        } else if (value = 3) {
+            return "result_3";
+        } else if (value = 4) {
+            return "result_4";
+        } else if (value = 5) {
+            return "result_5";
+        } else if (value = 6) {
+            return "result_6";
+        } else if (value = 7) {
+            return "result_7";
+        }
+    }
+    // 优化遍历方法 利用二分法将数组切割
+    function optimizeIteration(value) {
+        if (value < 4) {
+            if (value < 2) {
+                if (value = 0) {
+                    return "result_0";
+                } else {
+                    return "result_1";
+                }
+            } else {
+                if (value = 2) {
+                    return "result_0";
+                } else {
+                    return "result_1";
+                }
+            }
+        } else {
+            if (value < 6) {
+                if (value = 4) {
+                    return "result_0";
+                } else {
+                    return "result_1";
+                }
+            } else {
+                if (value = 6) {
+                    return "result_0";
+                } else {
+                    return "result_1";
+                }
+            }
+        }
+    }
+
+    // 查找表
+    var results = ["result_0", "result_1", "result_2", "result_3", "result_4", "result_5", "result_6", "result_7"];
+    // 不需要遍历，这种方式适用于可以预见的对象遍历，也就是有已知个数的对象（可以陈列出来的），并且可读性高，书写简便。
+    function seekTable(value) {
+        return results[value];
+    }
+
+    // 递归的两种方式
+    function first() {
+        first();
+    }
+    // 第二种
+    function first_1() {
+        second();
+    }
+    function second() {
+        first_1();
+    }
+
+    // 使用递归重复求值
+    // 求阶乘
+    function factorial(n) {
+        console.log("调用factorial");
+        if (n === 1) {
+            return n;
+        } else {
+            return n * factorial(n - 1);
+        }
+    }
+
+    // 三次调用factorial函数
+    /*var fact6 = factorial(6);
+    var fact5 = factorial(5);
+    var fact4 = factorial(4);*/
+    // 上面三次调用，一共对5的阶乘求了两次，4的阶乘求了三次，性能不好
+    // 优化 比如，6的阶乘等于5的阶乘乘以6，所以在求6的阶乘的同时将5的阶乘缓存，那么下次求5的阶乘，只需调用一次函数即可。
+    function memfactorial(n) {
+        // 初始缓存0和1的阶乘
+        if (!memfactorial.cache) {
+            memfactorial.cache = {
+                "0": 1,
+                "1": 1
+            }
+        }
+        console.log("调用了memfactorial");
+
+        // 查询如果没有此项，新添缓存，以便下次调用
+        if (!memfactorial.cache.hasOwnProperty(n)) {
+            memfactorial.cache[n] = n * memfactorial(n - 1);
+        }
+
+        return memfactorial.cache[n];
+    }
+
+    console.log(memfactorial(6));
+    console.log(memfactorial(5));
+    console.log(memfactorial(4));
+
+    // 封装后的版本
+    function memoize(fundamental, cache) {
+        cache = cache || {};
+
+        return function (n) {
+            if (!cache[n]) {
+                cache[n] = fundamental(n);
+            }
+            console.log(cache);
+            return cache[n];
+        };
+    }
+
+    var memfac=memoize(factorial,{"0":1,"1":1});
+
+    /*console.log(memfac(6));
+    console.log(memfac(5));
+    console.log(memfac(4));*/
+</script>
+</body>
+</html>

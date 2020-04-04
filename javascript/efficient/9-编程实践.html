@@ -1,0 +1,96 @@
+<!--
+    避免双重求值
+        eval()、Function()构造函数、setTimeout()、setInterval()这些函数都可能引起双重求值
+        尽量避免eval和Function的使用，
+        setTimeout和setInterval建议传入函数而不是字符串作为第一个参数使用。
+
+    使用对象和数组直接量
+        对象和数组直接量运行比起其他方式要快
+
+    避免重复工作
+        见下例：
+
+    使用位操作
+        按位与  两个对应位都是1，则在该位返回1
+        按位或  两个对应位有一个为1，则在该位返回1
+        按位异或  两个对应位只有一个是1，则在该位返回1
+        按位取反  遇 0 则返回 1 ，反之亦然
+
+    原生方法
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+
+<script>
+    // 避免双重求值  下面这几种方式都会找出双重求值
+    var num1 = 5, num2 = 6;
+
+    eval("num1+num2");
+
+    var sum = new Function("arg1", "arg2", "return arg1+arg2");
+
+    setTimeout("sum=num1+num2", 15);  // 建议使用传入函数方式
+
+    setInterval("sum=num1+num2", 15);
+
+    // 避免重复工作
+    // 这个方法中的判断是用来判断是那种浏览器的，这种工作只需判断一次就可以了，不用每次调用函数都去判断
+    function addHandler(target, eventType, handler) {
+        if (target.addEventListener) {
+            target.addEventListener(eventType, handler, false);
+        } else {
+            target.attachEvent("on" + eventType, handler);
+        }
+    }
+
+    // 改进一
+    function addHandler_1(target, eventType, handler) {
+        if (target.addEventListener) {
+            addHandler_1 = function (target, eventType, handler) {
+                target.addEventListener(eventType, handler, false);
+            }
+        } else {
+            addHandler_1 = function (target, eventType, handler) {
+                target.attachEvent("on" + eventType, handler);
+            }
+        }
+        addHandler_1(target, eventType, handler);
+    }
+
+    // 改进二
+    var addHandler_2 = document.body.addEventListener ?
+            function (target, eventType, handler) {
+                target.addEventListener(eventType, handler, false);
+            } :
+            function (target, eventType, handler) {
+                target.attachEvent("on" + eventType, handler);
+            }
+
+    // 按位符的应用
+    var className;
+    for (var i = 0; i < 1000; i++) {
+        if (i % 2) {
+            className = "even";
+        } else {
+            className = "odd";
+        }
+    }
+    // 也可以这样写
+    // 奇数转为二进制末位为 1，偶数为 0，所以与 1 按位与运算，奇数为 1，偶数为 0
+    for (var a = 0; a < 1000; a++) {
+        if (a & 1) {
+            className = "even";
+        } else {
+            className = "odd";
+        }
+    }
+</script>
+</body>
+</html>
